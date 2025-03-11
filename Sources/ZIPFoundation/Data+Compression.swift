@@ -13,7 +13,7 @@ import Foundation
 #if canImport(zlib)
     import zlib
 #else
-    import CZLib
+    import ZLib
 #endif
 
 /// The compression method of an `Entry` in a ZIP `Archive`.
@@ -165,7 +165,7 @@ public extension Data {
     // MARK: - Non-Apple Platforms
 
 #else
-    import CZLib
+    import ZLib
 
     extension Data {
         static func encode(size: Int64, bufferSize: Int, provider: Provider, consumer: Consumer) throws -> CRC32 {
