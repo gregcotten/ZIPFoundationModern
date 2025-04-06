@@ -67,7 +67,7 @@ public class ArchiveHandle {
     public func readToEnd() throws -> Data? {
         switch backing {
         case let .file(file):
-            return try file.readToEnd()
+            return try file._readToEnd()
         case let .memory(mem):
             return try mem.readToEnd()
         }
@@ -76,7 +76,7 @@ public class ArchiveHandle {
     public func read(upToCount count: Int) throws -> Data? {
         switch backing {
         case let .file(file):
-            return try file.read(upToCount: count)
+            return try file._read(upToCount: count)
         case let .memory(mem):
             return try mem.read(upToCount: count)
         }
@@ -85,7 +85,7 @@ public class ArchiveHandle {
     public func offset() throws -> UInt64 {
         switch backing {
         case let .file(file):
-            return try file.offset()
+            return try file._offset()
         case let .memory(mem):
             return UInt64(mem.offset)
         }
@@ -94,7 +94,7 @@ public class ArchiveHandle {
     public func seekToEnd() throws -> UInt64 {
         switch backing {
         case let .file(file):
-            return try file.seekToEnd()
+            return try file._seekToEnd()
         case let .memory(mem):
             return mem.seekToEnd()
         }
@@ -107,7 +107,7 @@ public class ArchiveHandle {
 
         switch backing {
         case let .file(file):
-            try file.write(contentsOf: data)
+            try file._write(contentsOf: data)
         case let .memory(mem):
             try mem.write(contentsOf: data)
         }
@@ -139,6 +139,48 @@ public class ArchiveHandle {
             try file.truncate(atOffset: offset)
         case let .memory(mem):
             try mem.truncate(atOffset: offset)
+        }
+    }
+}
+
+fileprivate extension FileHandle {
+    func _readToEnd() throws -> Data? {
+        if #available(macOS 10.15.4, *) {
+            try readToEnd()
+        } else {
+            readDataToEndOfFile()
+        }
+    }
+
+    func _read(upToCount count: Int) throws -> Data? {
+        if #available(macOS 10.15.4, *) {
+            try read(upToCount: count)
+        } else {
+            readData(ofLength: count)
+        }
+    }
+
+    func _offset() throws -> UInt64 {
+        if #available(macOS 10.15.4, *) {
+            try offset()
+        } else {
+            offsetInFile
+        }
+    }
+
+    func _seekToEnd() throws -> UInt64 {
+        if #available(macOS 10.15.4, *) {
+            try seekToEnd()
+        } else {
+            seekToEndOfFile()
+        }
+    }
+
+    func _write(contentsOf data: some DataProtocol) throws {
+        if #available(macOS 10.15.4, *) {
+            try write(contentsOf: data)
+        } else {
+            write(Data(data))
         }
     }
 }

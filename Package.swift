@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "ZIPFoundation",
     platforms: [
-        .macOS(.v11), .iOS(.v12), .tvOS(.v12), .watchOS(.v4),
+        .macOS(.v10_15), .iOS(.v12), .tvOS(.v12), .watchOS(.v4),
     ],
     products: [
         .library(name: "ZIPFoundation", targets: ["ZIPFoundation"]),
