@@ -130,6 +130,42 @@ extension ZIPFoundationTests {
         XCTAssert(itemsExist)
     }
 
+    func testUnzipItemWithFrameworkSymlinkChain() {
+        let fileManager = FileManager()
+        let archive = archive(for: #function, mode: .create)
+        let destinationURL = createDirectory(for: #function)
+        let frameworkName = "Test.framework"
+        let resourcesTarget = "Versions/Current/Resources"
+        let currentTarget = "B"
+
+        do {
+            try archive.addEntry(with: "\(frameworkName)/", type: .directory, uncompressedSize: 0) { _, _ in Data() }
+            try archive.addEntry(with: "\(frameworkName)/Versions/", type: .directory, uncompressedSize: 0) { _, _ in Data() }
+            try archive.addEntry(with: "\(frameworkName)/Versions/B/", type: .directory, uncompressedSize: 0) { _, _ in Data() }
+            try archive.addEntry(with: "\(frameworkName)/Versions/B/Resources/", type: .directory, uncompressedSize: 0) { _, _ in Data() }
+            try archive.addEntry(with: "\(frameworkName)/Resources",
+                                 type: .symlink,
+                                 uncompressedSize: Int64(resourcesTarget.utf8.count)) { _, _ in
+                Data(resourcesTarget.utf8)
+            }
+            try archive.addEntry(with: "\(frameworkName)/Versions/Current",
+                                 type: .symlink,
+                                 uncompressedSize: Int64(currentTarget.utf8.count)) { _, _ in
+                Data(currentTarget.utf8)
+            }
+
+            try fileManager.unzipItem(at: archive.url, to: destinationURL)
+        } catch {
+            XCTFail("Failed to extract framework symlink chain. Error: \(error)")
+            return
+        }
+
+        let frameworkURL = destinationURL.appendingPathComponent(frameworkName)
+        XCTAssertEqual(try? fileManager.destinationOfSymbolicLink(atPath: frameworkURL.appendingPathComponent("Resources").path), resourcesTarget)
+        XCTAssertEqual(try? fileManager.destinationOfSymbolicLink(atPath: frameworkURL.appendingPathComponent("Versions/Current").path), currentTarget)
+        XCTAssertTrue(fileManager.itemExists(at: frameworkURL.appendingPathComponent("Resources")))
+    }
+
     func testUnzipItemWithPreferredEncoding() {
         let fileManager = FileManager()
         let encoding = String.Encoding.utf8

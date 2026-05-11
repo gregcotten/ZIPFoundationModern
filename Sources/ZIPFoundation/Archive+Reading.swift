@@ -62,6 +62,11 @@ public extension Archive {
                                    progress: progress, consumer: consumer)
         }
 
+        // FileManager.setAttributes can apply target-style attributes through symlinks.
+        // That is not useful for the symlink itself and can fail for symlink chains
+        // whose targets are created by later symlink entries.
+        guard entry.type != .symlink else { return checksum }
+
         #if os(Windows)
             try? fileManager.setAttributes(entry.fileAttributes, ofItemAtPath: url.path)
         #else
