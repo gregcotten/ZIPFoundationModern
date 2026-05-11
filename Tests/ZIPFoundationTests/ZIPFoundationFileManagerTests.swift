@@ -130,6 +130,7 @@ extension ZIPFoundationTests {
         XCTAssert(itemsExist)
     }
 
+    #if !os(Windows)
     func testUnzipItemWithFrameworkSymlinkChain() {
         let fileManager = FileManager()
         let archive = archive(for: #function, mode: .create)
@@ -165,6 +166,7 @@ extension ZIPFoundationTests {
         XCTAssertEqual(try? fileManager.destinationOfSymbolicLink(atPath: frameworkURL.appendingPathComponent("Versions/Current").path), currentTarget)
         XCTAssertTrue(fileManager.itemExists(at: frameworkURL.appendingPathComponent("Resources")))
     }
+    #endif
 
     func testUnzipItemWithPreferredEncoding() {
         let fileManager = FileManager()
