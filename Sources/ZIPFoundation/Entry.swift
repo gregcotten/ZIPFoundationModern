@@ -138,8 +138,15 @@ public struct Entry: Equatable {
 
     /// The `path` of the receiver within a ZIP `Archive`.
     public var path: String {
-        let encoding = centralDirectoryStructure.usesUTF8PathEncoding ? .utf8 : Self.codepage437
-        return self.path(using: encoding)
+        if centralDirectoryStructure.usesUTF8PathEncoding {
+            return self.path(using: .utf8)
+        }
+
+        if let utf8Path = String(data: centralDirectoryStructure.fileNameData, encoding: .utf8) {
+            return utf8Path
+        }
+
+        return self.path(using: Self.codepage437)
     }
 
     /// The file attributes of the receiver as key/value pairs.

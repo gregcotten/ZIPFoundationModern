@@ -122,6 +122,21 @@ extension ZIPFoundationTests {
         XCTAssertTrue(entry.path == "")
     }
 
+    func testEntryPathPrefersValidUTF8WhenFlagIsUnset() throws {
+        let path = "Fixtures/source → destination.txt"
+        let pathData = try XCTUnwrap(path.data(using: .utf8))
+        let entry = try makeStoredEntry(pathData: pathData, generalPurposeBitFlag: 0)
+
+        XCTAssertEqual(entry.path, path)
+    }
+
+    func testEntryPathFallsBackToCP437WhenUTF8IsInvalidAndFlagIsUnset() throws {
+        let invalidUTF8PathData = Data([0x82])
+        let entry = try makeStoredEntry(pathData: invalidUTF8PathData, generalPurposeBitFlag: 0)
+
+        XCTAssertEqual(entry.path, entry.path(using: Entry.codepage437))
+    }
+
     func testEntryMissingDataDescriptorErrorCondition() {
         let cdsBytes: [UInt8] = [0x50, 0x4B, 0x01, 0x02, 0x1E, 0x03, 0x14, 0x00,
                                  0x08, 0x08, 0x08, 0x00, 0xAB, 0x85, 0x77, 0x47,
@@ -214,5 +229,55 @@ extension ZIPFoundationTests {
         let archive = archive(for: #function, mode: .read)
         XCTAssert(archive["compressed"]?.isCompressed == true)
         XCTAssert(archive["uncompressed"]?.isCompressed == false)
+    }
+
+    private func makeStoredEntry(pathData: Data, generalPurposeBitFlag: UInt16) throws -> Entry {
+        guard let fileNameLength = UInt16(exactly: pathData.count) else {
+            throw AdditionalDataError.invalidDataError
+        }
+
+        var cdsBytes = Data()
+        appendLittleEndian(UInt32(centralDirectoryStructSignature), to: &cdsBytes)
+        appendLittleEndian(UInt16(0x031E), to: &cdsBytes)
+        appendLittleEndian(UInt16(20), to: &cdsBytes)
+        appendLittleEndian(generalPurposeBitFlag, to: &cdsBytes)
+        appendLittleEndian(UInt16(0), to: &cdsBytes)
+        appendLittleEndian(UInt16(0), to: &cdsBytes)
+        appendLittleEndian(UInt16(0), to: &cdsBytes)
+        appendLittleEndian(UInt32(0), to: &cdsBytes)
+        appendLittleEndian(UInt32(0), to: &cdsBytes)
+        appendLittleEndian(UInt32(0), to: &cdsBytes)
+        appendLittleEndian(fileNameLength, to: &cdsBytes)
+        appendLittleEndian(UInt16(0), to: &cdsBytes)
+        appendLittleEndian(UInt16(0), to: &cdsBytes)
+        appendLittleEndian(UInt16(0), to: &cdsBytes)
+        appendLittleEndian(UInt16(0), to: &cdsBytes)
+        appendLittleEndian(UInt32(0), to: &cdsBytes)
+        appendLittleEndian(UInt32(0), to: &cdsBytes)
+
+        var lfhBytes = Data()
+        appendLittleEndian(UInt32(localFileHeaderStructSignature), to: &lfhBytes)
+        appendLittleEndian(UInt16(20), to: &lfhBytes)
+        appendLittleEndian(generalPurposeBitFlag, to: &lfhBytes)
+        appendLittleEndian(UInt16(0), to: &lfhBytes)
+        appendLittleEndian(UInt16(0), to: &lfhBytes)
+        appendLittleEndian(UInt16(0), to: &lfhBytes)
+        appendLittleEndian(UInt32(0), to: &lfhBytes)
+        appendLittleEndian(UInt32(0), to: &lfhBytes)
+        appendLittleEndian(UInt32(0), to: &lfhBytes)
+        appendLittleEndian(fileNameLength, to: &lfhBytes)
+        appendLittleEndian(UInt16(0), to: &lfhBytes)
+
+        let central = try XCTUnwrap(Entry.CentralDirectoryStructure(data: cdsBytes) { _ in pathData })
+        let local = try XCTUnwrap(Entry.LocalFileHeader(data: lfhBytes) { _ in pathData })
+
+        return try XCTUnwrap(Entry(centralDirectoryStructure: central, localFileHeader: local))
+    }
+
+    private func appendLittleEndian<T: FixedWidthInteger>(_ value: T, to data: inout Data) {
+        var littleEndianValue = value.littleEndian
+        withUnsafeBytes(of: &littleEndianValue) {
+            data.append(contentsOf: $0)
+        }
     }
 }
