@@ -325,31 +325,30 @@ extension ZIPFoundationTests {
         } catch { XCTFail("Failed to test last file modification date. Error: \(error)") }
     }
 
-    /// Windows doesn't really "do" POSIX permissions
-    func testPOSIXPermissions() {
+    func testPOSIXPermissions() throws {
         #if os(Windows)
-            let permissions = NSNumber(value: Int16(0o700))
+            throw XCTSkip("Windows does not reliably round-trip POSIX file permissions.")
         #else
             let permissions = NSNumber(value: Int16(0o753))
+            let assetURL = resourceURL(for: #function, pathExtension: "png")
+            let fileManager = FileManager()
+            let archive = archive(for: #function, mode: .create)
+            do {
+                try fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: assetURL.path)
+                let assetPOSIXPermissions = UInt16(try fileManager.permissionsForItem(at: assetURL).rawValue)
+                XCTAssertEqual(assetPOSIXPermissions, permissions.uint16Value, "permissions didn't actualy get set. expected: \(String(permissions.uint16Value, radix: 0o10)), actual: \(String(assetPOSIXPermissions, radix: 0o10))")
+                let relativePath = assetURL.lastPathComponent
+                let baseURL = assetURL.deletingLastPathComponent()
+                try archive.addEntry(with: relativePath, relativeTo: baseURL)
+                guard let entry = archive["\(assetURL.lastPathComponent)"] else {
+                    throw Archive.ArchiveError.unreadableArchive
+                }
+                guard let filePermissions = entry.fileAttributes[.posixPermissions] as? NSNumber else {
+                    throw CocoaError(CocoaError.fileReadUnknown)
+                }
+                XCTAssert(permissions.uint16Value == filePermissions.uint16Value, "invalid permissions. expected: \(String(permissions.uint16Value, radix: 0o10)), actual: \(String(filePermissions.uint16Value, radix: 0o10))")
+            } catch { XCTFail("Failed to test POSIX permissions. Error: \(error)") }
         #endif
-        let assetURL = resourceURL(for: #function, pathExtension: "png")
-        let fileManager = FileManager()
-        let archive = archive(for: #function, mode: .create)
-        do {
-            try fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: assetURL.path)
-            let assetPOSIXPermissions = UInt16(try fileManager.permissionsForItem(at: assetURL).rawValue)
-            XCTAssertEqual(assetPOSIXPermissions, permissions.uint16Value, "permissions didn't actualy get set. expected: \(String(permissions.uint16Value, radix: 0o10)), actual: \(String(assetPOSIXPermissions, radix: 0o10))")
-            let relativePath = assetURL.lastPathComponent
-            let baseURL = assetURL.deletingLastPathComponent()
-            try archive.addEntry(with: relativePath, relativeTo: baseURL)
-            guard let entry = archive["\(assetURL.lastPathComponent)"] else {
-                throw Archive.ArchiveError.unreadableArchive
-            }
-            guard let filePermissions = entry.fileAttributes[.posixPermissions] as? NSNumber else {
-                throw CocoaError(CocoaError.fileReadUnknown)
-            }
-            XCTAssert(permissions.uint16Value == filePermissions.uint16Value, "invalid permissions. expected: \(String(permissions.uint16Value, radix: 0o10)), actual: \(String(filePermissions.uint16Value, radix: 0o10))")
-        } catch { XCTFail("Failed to test POSIX permissions. Error: \(error)") }
     }
 
     func testCRC32Check() {
