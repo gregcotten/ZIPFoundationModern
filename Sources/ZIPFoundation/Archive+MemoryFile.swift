@@ -76,7 +76,7 @@ class MemoryFile {
         let spaceRemaining = data.endIndex - offset
 
         if moreData.count > spaceRemaining {
-            data.append(contentsOf: .init(repeating: 0, count: moreData.count - spaceRemaining))
+            data.append(contentsOf: Array(repeating: 0, count: moreData.count - spaceRemaining))
         }
 
         data.replaceSubrange(offset ..< offset + moreData.count, with: moreData)
@@ -95,7 +95,7 @@ class MemoryFile {
         if truncateOffset < data.endIndex {
             data.removeSubrange(truncateOffset ..< data.endIndex)
         } else if truncateOffset > data.endIndex {
-            data.append(contentsOf: .init(repeating: 0, count: truncateOffset - data.endIndex))
+            data.append(contentsOf: Array(repeating: 0, count: truncateOffset - data.endIndex))
         }
 
         offset = truncateOffset
